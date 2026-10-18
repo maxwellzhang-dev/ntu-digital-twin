@@ -2,6 +2,8 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import { Tile3DLayer } from '@deck.gl/geo-layers';
 import { PathLayer, PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { _TerrainExtension as TerrainExtension } from '@deck.gl/extensions';
+import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
+import { CubeGeometry } from '@luma.gl/engine';
 import type { Tileset3D } from '@loaders.gl/tiles';
 import type { ActiveBus, EnvironmentState } from '@/lib/types';
 
@@ -20,6 +22,22 @@ type FC = GeoJSON.FeatureCollection;
 type RGBA = [number, number, number, number];
 
 const terrain = new TerrainExtension();
+
+// 3D bus built from boxes, matching the Three.js bus in normal mode: a 12 m city bus scaled 2.5x.
+// CubeGeometry spans -1..1, so scales are half-extents in metres. Local axes: x = width, y = length (forward), z = up.
+const cube = new CubeGeometry();
+const BUS_SCALE = 2.5;
+const W = 2.5 * BUS_SCALE;
+const L = 12 * BUS_SCALE;
+const H = 3.2 * BUS_SCALE;
+const LIFT = 0.4 * BUS_SCALE;
+const BUS_PARTS: { id: string; color: RGBA; scale: [number, number, number]; translation: [number, number, number] }[] = [
+  { id: 'body', color: [255, 255, 255, 255], scale: [W / 2, L / 2, (H * 0.8) / 2], translation: [0, 0, LIFT + (H * 0.8) / 2] },
+  { id: 'windows', color: [30, 41, 59, 255], scale: [(W * 1.01) / 2, (L * 0.9) / 2, (H * 0.25) / 2], translation: [0, 0, LIFT + H * 0.6] },
+  { id: 'roof', color: [255, 114, 0, 255], scale: [(W * 1.02) / 2, (L * 1.01) / 2, (H * 0.2) / 2], translation: [0, 0, LIFT + H * 0.9] },
+  { id: 'headlights', color: [255, 244, 214, 255], scale: [(W * 0.8) / 2, 0.3, 0.5], translation: [0, L / 2 + 0.2, LIFT + 1.2] },
+  { id: 'taillights', color: [255, 32, 32, 255], scale: [(W * 0.8) / 2, 0.3, 0.5], translation: [0, -L / 2 - 0.2, LIFT + 1.2] },
+];
 
 function hexToRgb(hex: string, alpha = 255): RGBA {
   const n = Number.parseInt(hex.replace('#', ''), 16);
@@ -123,19 +141,25 @@ export function buildPhotorealLayers(apiKey: string, data: PhotorealData, onCred
       extensions: [terrain],
     }),
 
-    new ScatterplotLayer({
-      id: 'photoreal-buses',
-      data: data.buses,
-      visible: data.showTransit,
-      getPosition: (b: ActiveBus) => [b.lng, b.lat],
-      getRadius: 8,
-      radiusUnits: 'pixels',
-      getFillColor: [255, 114, 0, 255],
-      getLineColor: [255, 255, 255, 255],
-      lineWidthMinPixels: 2,
-      stroked: true,
-      extensions: [terrain],
-    }),
+    ...BUS_PARTS.map(
+      (part) =>
+        new SimpleMeshLayer({
+          id: `photoreal-bus-${part.id}`,
+          data: data.buses,
+          visible: data.showTransit,
+          mesh: cube,
+          getPosition: (b: ActiveBus) => [b.lng, b.lat],
+          // Bearing is clockwise from north; yaw is counter-clockwise around the up axis.
+          getOrientation: (b: ActiveBus) => [0, -b.bearing, 0],
+          getScale: part.scale,
+          getTranslation: part.translation,
+          getColor: part.color,
+          // Lift each bus to the mesh surface instead of draping it flat.
+          extensions: [terrain],
+          terrainDrawMode: 'offset',
+          updateTriggers: { getPosition: data.buses, getOrientation: data.buses },
+        }),
+    ),
 
     new TextLayer({
       id: 'photoreal-bus-labels',
@@ -145,7 +169,9 @@ export function buildPhotorealLayers(apiKey: string, data: PhotorealData, onCred
       getText: (b: ActiveBus) => b.route,
       getSize: 14,
       getColor: [255, 114, 0, 255],
-      getPixelOffset: [0, -18],
+      getPixelOffset: [0, -40],
+      // Never let the mesh or the bus model hide the service number.
+      parameters: { depthCompare: 'always' },
       fontWeight: 700,
       outlineWidth: 3,
       outlineColor: [11, 17, 32, 255],

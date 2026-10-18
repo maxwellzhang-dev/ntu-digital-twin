@@ -198,7 +198,7 @@ To verify the lightning logic without waiting for a storm, replay a past one by 
 2. Enable **Map Tiles API**.
 3. Create an **API key** and restrict it to **HTTP referrers** (`http://localhost:3000/*` and your deployed domain) and to the Map Tiles API.
 4. Put it in `.env.local` as `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, then restart `npm run dev` (`NEXT_PUBLIC_` variables are read at startup).
-5. Open the app at **http://localhost:3000** (the referrer must match the key restriction) and click **Real 3D**. Our own extrusions, labels and Three.js buses are hidden. Routes, stops, buses, facilities and lightning are re-drawn by deck.gl and draped onto Google's mesh. Switching off restores the normal view.
+5. Open the app at **http://localhost:3000** (the referrer must match the key restriction) and click **Real 3D**. Our own extrusions, labels and Three.js buses are hidden. Routes, stops, facilities and lightning are re-drawn by deck.gl and draped onto Google's mesh, and the live buses stay 3D models sitting on the real roads. Switching off restores the normal view.
 
 > [!TIP]
 > When you create the key, Google's console accepts `localhost:3000/*` but may reject raw-IP referrers such as `127.0.0.1`. A brand-new key or restriction can return HTTP 403 for a few minutes until it propagates.
