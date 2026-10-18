@@ -22,6 +22,7 @@ type FC = GeoJSON.FeatureCollection;
 type RGBA = [number, number, number, number];
 
 const terrain = new TerrainExtension();
+let lastCredits = '';
 
 // 3D bus built from boxes, matching the Three.js bus in normal mode: a 12 m city bus scaled 2.5x.
 // CubeGeometry spans -1..1, so scales are half-extents in metres. Local axes: x = width, y = length (forward), z = up.
@@ -83,7 +84,12 @@ export function buildPhotorealLayers(apiKey: string, data: PhotorealData, onCred
             const copyright: string | undefined = (tile.content as { gltf?: { asset?: { copyright?: string } } })?.gltf?.asset?.copyright;
             copyright?.split(';').forEach((c) => c.trim() && credits.add(c.trim()));
           }
-          onCredits([...credits].join('; '));
+          // Traversal runs every frame while the camera moves; only report actual changes.
+          const text = [...credits].join('; ');
+          if (text !== lastCredits) {
+            lastCredits = text;
+            onCredits(text);
+          }
           return selected;
         };
       },

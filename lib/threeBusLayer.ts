@@ -112,6 +112,7 @@ export class ThreeBusLayer implements CustomLayerInterface {
     this.camera.projectionMatrix = m.multiply(l);
     this.renderer.resetState();
     this.renderer.render(this.scene, this.camera);
-    this.map?.triggerRepaint();
+    // No triggerRepaint() here: buses only move when setBuses() runs (every 5 s), which already
+    // requests a repaint. Repainting from render() kept the whole map redrawing at 60 fps forever.
   }
 }

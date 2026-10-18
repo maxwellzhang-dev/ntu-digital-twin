@@ -9,12 +9,14 @@ import BuildingEnergyModal from '@/components/BuildingEnergyModal';
 import EnvironmentPanel from '@/components/EnvironmentPanel';
 import LayerToggles from '@/components/LayerToggles';
 import type { FlyTarget, LayerVisibility } from '@/components/MapCanvas';
-import type { CampusBuilding, EnvironmentState, TransitState } from '@/lib/types';
+import type { ActiveBus, CampusBuilding, EnvironmentState, TransitState } from '@/lib/types';
 
 const MapCanvas = dynamic(() => import('@/components/MapCanvas'), { ssr: false });
 
 type FC = GeoJSON.FeatureCollection;
 const POLL_SECONDS = 5;
+// Stable empty list: a fresh `[]` on every countdown tick would look like new bus data to MapCanvas.
+const NO_BUSES: ActiveBus[] = [];
 const ENV_POLL_MS = 60_000;
 
 const LANDMARKS: { name: string; center: [number, number]; pitch: number; bearing: number }[] = [
@@ -112,7 +114,7 @@ export default function Home() {
         stopsAndRoutes={stopsAndRoutes}
         facilitiesGeoJson={facilitiesGeoJson}
         environment={environment}
-        buses={transit?.buses ?? []}
+        buses={transit?.buses ?? NO_BUSES}
         layers={layers}
         flyTarget={flyTarget}
         onBuildingClick={setSelectedId}

@@ -239,6 +239,7 @@ Add `LTA_ACCOUNT_KEY`, `LTA_DATAMALL_API` and, optionally, `DATA_GOV_API_KEY` an
 | Air & Weather shows "stale" or "unavailable" | data.gov.sg 429 rate limit | Wait a minute, or set `DATA_GOV_API_KEY` |
 | A giant red polygon over campus | Running tracks are mapped as open lines in OSM | The script keeps only closed rings |
 | Real 3D on, but the HUD panels disappear | deck.gl's canvas lives inside MapLibre's control container (`z-index: 2`) | Give the HUD, haze overlay and Google attribution an explicit z-index (`z-10` / `z-[3]` / `z-[5]`) |
+| Page feels sluggish, GPU busy while idle | A custom layer calling `map.triggerRepaint()` inside `render()` keeps MapLibre redrawing at 60 fps forever (the original workshop pattern) | Repaint only when bus data changes (`setBuses`). Also skip `setData` for sources whose input did not change. Idle draw calls went from about 40,000/s to 0 |
 | Blocked cross-origin `/_next/hmr` from 127.0.0.1 | Next.js 16 dev-origin protection | `allowedDevOrigins: ['127.0.0.1']` in `next.config.ts` |
 
 ## Credits & Disclaimer

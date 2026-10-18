@@ -111,6 +111,8 @@ export default function MapCanvas(props: Props) {
   const readyRef = useRef(false);
   const photorealRef = useRef<ReturnType<typeof createPhotorealOverlay> | null>(null);
   const [credits, setCredits] = useState('');
+  // Inputs last pushed to each source / layer; lets syncSources skip work when nothing changed.
+  const appliedRef = useRef<Record<string, readonly unknown[]>>({});
 
   // Latest props live in a ref so they can be (re)applied whenever the style becomes ready.
   const propsRef = useRef(props);
@@ -120,15 +122,28 @@ export default function MapCanvas(props: Props) {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
     const p = propsRef.current;
-    (map.getSource('campus-buildings') as GeoJSONSource | undefined)?.setData(p.buildingsGeoJson ?? EMPTY);
-    (map.getSource('campus-energy-pillars') as GeoJSONSource | undefined)?.setData(p.pillarsGeoJson ?? EMPTY);
-    (map.getSource('campus-routes') as GeoJSONSource | undefined)?.setData(p.stopsAndRoutes?.routes ?? EMPTY);
-    (map.getSource('campus-stops') as GeoJSONSource | undefined)?.setData(p.stopsAndRoutes?.stops ?? EMPTY);
-    (map.getSource('campus-facilities') as GeoJSONSource | undefined)?.setData(facilitiesWithStatus(p.facilitiesGeoJson, p.environment));
-    (map.getSource('lightning') as GeoJSONSource | undefined)?.setData(lightningToGeoJson(p.environment));
-    (map.getSource('live-buses') as GeoJSONSource | undefined)?.setData(busesToGeoJson(p.buses));
     const photoreal = p.layers.photoreal && PHOTOREAL_AVAILABLE;
-    busLayerRef.current?.setBuses(p.layers.transit && !photoreal ? p.buses : []);
+
+    // Run `apply` only when one of `deps` changed since the last time (by reference).
+    const changed = (key: string, deps: readonly unknown[]) => {
+      const prev = appliedRef.current[key];
+      if (prev && prev.length === deps.length && prev.every((d, i) => d === deps[i])) return false;
+      appliedRef.current[key] = deps;
+      return true;
+    };
+    const setData = (id: string, deps: readonly unknown[], data: () => FC) => {
+      if (changed(id, deps)) (map.getSource(id) as GeoJSONSource | undefined)?.setData(data());
+    };
+
+    // Re-uploading unchanged GeoJSON every 5 s re-tessellated hundreds of buildings for nothing.
+    setData('campus-buildings', [p.buildingsGeoJson], () => p.buildingsGeoJson ?? EMPTY);
+    setData('campus-energy-pillars', [p.pillarsGeoJson], () => p.pillarsGeoJson ?? EMPTY);
+    setData('campus-routes', [p.stopsAndRoutes], () => p.stopsAndRoutes?.routes ?? EMPTY);
+    setData('campus-stops', [p.stopsAndRoutes], () => p.stopsAndRoutes?.stops ?? EMPTY);
+    setData('campus-facilities', [p.facilitiesGeoJson, p.environment], () => facilitiesWithStatus(p.facilitiesGeoJson, p.environment));
+    setData('lightning', [p.environment], () => lightningToGeoJson(p.environment));
+    setData('live-buses', [p.buses], () => busesToGeoJson(p.buses));
+    if (changed('three-buses', [p.buses, p.layers.transit, photoreal])) busLayerRef.current?.setBuses(p.layers.transit && !photoreal ? p.buses : []);
 
     // Photoreal mode: Google 3D tiles + draped data on a deck.gl canvas above MapLibre.
     if (photoreal) {
@@ -136,7 +151,7 @@ export default function MapCanvas(props: Props) {
         photorealRef.current = createPhotorealOverlay();
         map.addControl(photorealRef.current);
       }
-      photorealRef.current.setProps({
+      if (changed('photoreal', [p.stopsAndRoutes, p.facilitiesGeoJson, p.environment, p.buses, p.layers.transit, p.layers.facilities])) photorealRef.current.setProps({
         layers: buildPhotorealLayers(
           GOOGLE_KEY,
           { stopsAndRoutes: p.stopsAndRoutes, facilitiesGeoJson: p.facilitiesGeoJson, environment: p.environment, buses: p.buses, showTransit: p.layers.transit, showFacilities: p.layers.facilities },
@@ -146,18 +161,22 @@ export default function MapCanvas(props: Props) {
     } else if (photorealRef.current) {
       map.removeControl(photorealRef.current);
       photorealRef.current = null;
+      delete appliedRef.current.photoreal;
       setCredits('');
     }
-    for (const id of MAPLIBRE_DATA_LAYERS) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', photoreal ? 'none' : 'visible');
 
+    const setVisibility = (id: string, visible: boolean) => {
+      const value = visible ? 'visible' : 'none';
+      if (map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== value) map.setLayoutProperty(id, 'visibility', value);
+    };
+    for (const id of MAPLIBRE_DATA_LAYERS) setVisibility(id, !photoreal);
     for (const [group, ids] of Object.entries(LAYER_GROUPS)) {
-      const visible = p.layers[group as keyof LayerVisibility] && !photoreal;
-      for (const id of ids) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+      for (const id of ids) setVisibility(id, p.layers[group as keyof LayerVisibility] && !photoreal);
     }
 
     // Haze: grey-brown horizon whose density follows the live PSI.
     const h = p.layers.haze ? hazeStrength(p.environment?.psi24h ?? null) : 0;
-    map.setSky({
+    if (changed('sky', [h])) map.setSky({
       'sky-color': h > 0 ? '#3a3226' : '#0b1120',
       'horizon-color': h > 0 ? '#8a7a5c' : '#1e293b',
       'fog-color': '#8a7a5c',
@@ -392,6 +411,7 @@ export default function MapCanvas(props: Props) {
 
     return () => {
       readyRef.current = false;
+      appliedRef.current = {};
       map.remove();
       mapRef.current = null;
     };
