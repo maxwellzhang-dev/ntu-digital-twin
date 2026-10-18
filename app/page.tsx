@@ -37,7 +37,7 @@ export default function Home() {
   const [countdown, setCountdown] = useState(POLL_SECONDS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<FlyTarget | null>(null);
-  const [layers, setLayers] = useState<LayerVisibility>({ photoreal: false, satellite: false, transit: true, facilities: true, haze: true, energy: false });
+  const [layers, setLayers] = useState<LayerVisibility>({ photoreal: false, satellite: false, buildings: true, transit: true, facilities: true, haze: true, energy: false });
 
   useEffect(() => {
     fetch('/api/buildings')
@@ -91,6 +91,13 @@ export default function Home() {
 
   const flyTo = (center: [number, number], opts: Partial<FlyTarget> = {}) => setFlyTarget({ center, key: Date.now(), ...opts });
 
+  // Satellite imagery already shows the real rooftops: hide our models by default when it turns on
+  // and bring them back when it turns off. The Buildings toggle still overrides either way.
+  const changeLayers = (next: LayerVisibility) => {
+    if (next.satellite !== layers.satellite) next = { ...next, buildings: !next.satellite };
+    setLayers(next);
+  };
+
   const selectBuilding = (b: CampusBuilding) => {
     setSelectedId(b.id);
     setLayers((l) => ({ ...l, energy: true }));
@@ -119,7 +126,7 @@ export default function Home() {
           <p className="text-[11px] text-slate-400">Yunnan Garden Campus · live buses, air quality & facilities</p>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <LayerToggles layers={layers} onChange={setLayers} />
+          <LayerToggles layers={layers} onChange={changeLayers} />
           <nav className="flex flex-wrap justify-end gap-1.5">
             {LANDMARKS.map((l) => (
               <button

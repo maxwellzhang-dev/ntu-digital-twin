@@ -187,7 +187,7 @@ npm run dev
 Open http://localhost:3000 and check:
 1. **Live Transit** lists 179/199 buses (from about 05:30 to 00:30). Click one to fly to its 3D model.
 2. **Air & Weather** shows PSI, PM2.5, campus rain and lightning. When PSI is above 200, the pools and outdoor courts turn red.
-3. **Layer toggles**: Satellite, Transit, Facilities, Haze and Energy. Picking a building in the energy chart turns on the pillars and opens its 12-month profile.
+3. **Layer toggles**: Real 3D, Satellite, Buildings, Transit, Facilities, Haze and Energy. Turning on Satellite hides our building models by default, since the imagery already shows the real rooftops; the **Buildings** button brings them back. Picking a building in the energy chart turns on the pillars and opens its 12-month profile.
 4. Landmark buttons fly to The Hive, North Spine, the Admin Building, The Arc, the Swimming Complex and Pioneer MRT.
 
 To verify the lightning logic without waiting for a storm, replay a past one by mocking `Date.now` (for example `2026-10-01T15:30:00+08:00`, when a storm passed directly over NTU) and calling `getEnvironment()`.

@@ -21,6 +21,7 @@ export interface FlyTarget {
 export interface LayerVisibility {
   photoreal: boolean;
   satellite: boolean;
+  buildings: boolean;
   energy: boolean;
   transit: boolean;
   facilities: boolean;
@@ -48,11 +49,12 @@ const LOAD_LABEL: Record<string, string> = { SEA: 'Seats available', SDA: 'Stand
 const GOOGLE_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 export const PHOTOREAL_AVAILABLE = GOOGLE_KEY.length > 0;
 
-/** MapLibre layers hidden in photoreal mode (Google's mesh replaces the basemap and our extrusions). */
-const MAPLIBRE_DATA_LAYERS = ['campus-3d-buildings', 'campus-building-labels', 'lightning'];
+/** MapLibre layers outside the toggle groups that are hidden in photoreal mode (deck.gl redraws them on the mesh). */
+const MAPLIBRE_DATA_LAYERS = ['lightning'];
 
 const LAYER_GROUPS: Record<keyof LayerVisibility, string[]> = {
   photoreal: [],
+  buildings: ['campus-3d-buildings', 'campus-building-labels'],
   satellite: ['satellite'],
   energy: ['campus-energy-pillars'],
   transit: ['campus-routes', 'campus-stops', 'ntu-bus-3d', 'live-buses-hit', 'live-buses-label'],
