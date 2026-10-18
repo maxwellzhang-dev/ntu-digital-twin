@@ -413,15 +413,16 @@ export default function MapCanvas(props: Props) {
       <div ref={containerRef} className="h-full w-full" />
       {layers.photoreal && PHOTOREAL_AVAILABLE && (
         // Google attribution: logo text + per-viewport data credits, kept apart from other attributions.
-        <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/55 px-2 py-0.5 text-[11px] text-white">
+        <div className="pointer-events-none absolute bottom-2 left-1/2 z-[5] -translate-x-1/2 rounded bg-black/55 px-2 py-0.5 text-[11px] text-white">
           <span className="font-semibold">Google</span>
           {credits && <span className="ml-1.5 opacity-80">{credits}</span>}
         </div>
       )}
+      {/* z-index: MapLibre's control container (z 2) hosts deck.gl's canvas in Real 3D mode; overlays must sit above it. */}
       {/* Smog overlay: thick toward the horizon (top of a pitched view), thin near the camera. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 transition-opacity duration-1000"
+        className="pointer-events-none absolute inset-0 z-[3] transition-opacity duration-1000"
         style={{
           opacity: haze,
           background: 'linear-gradient(to bottom, rgba(150,130,95,0.85) 0%, rgba(140,120,88,0.55) 35%, rgba(120,104,78,0.18) 75%, rgba(110,96,72,0.05) 100%)',

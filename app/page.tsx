@@ -111,7 +111,7 @@ export default function Home() {
         onBuildingClick={setSelectedId}
       />
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-3 p-4">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-3 p-4">
         <div className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-950/75 px-4 py-3 text-slate-100 shadow-2xl backdrop-blur-xl">
           <h1 className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <Building2 className="h-5 w-5 text-sky-400" /> NTU 3D Digital Twin
@@ -134,7 +134,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="pointer-events-none absolute bottom-10 left-4 top-28 flex w-[min(340px,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto">
+      <div className="pointer-events-none absolute bottom-10 left-4 top-28 z-10 flex w-[min(340px,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto">
         <div className="pointer-events-auto">
           <EnvironmentPanel environment={environment} onFacilityClick={(lng, lat) => flyTo([lng, lat], { zoom: 17.8, pitch: 60 })} />
         </div>
@@ -143,7 +143,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-10 right-14 top-36 hidden w-[320px] flex-col gap-3 md:flex">
+      <div className="pointer-events-none absolute bottom-10 right-14 top-36 z-10 hidden w-[320px] flex-col gap-3 md:flex">
         {selected && (
           <div className="pointer-events-auto">
             <BuildingEnergyModal building={selected} onClose={() => setSelectedId(null)} />

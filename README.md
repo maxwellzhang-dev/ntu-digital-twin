@@ -19,7 +19,9 @@ You will build an interactive geospatial command center for NTU's Yunnan Garden 
 |---|---|
 | ![Satellite](images/satellite-mode.jpg) | ![Energy](images/energy-mode.jpg) |
 
-![Live 3D bus](images/live-bus-3d.png)
+| Real 3D mode (Google Photorealistic 3D Tiles) | Live 3D bus |
+|---|---|
+| ![Real 3D](images/real-3d-mode.jpg) | ![Live 3D bus](images/live-bus-3d.png) |
 
 ### System Architecture & Data Pipeline
 
@@ -195,8 +197,11 @@ To verify the lightning logic without waiting for a storm, replay a past one by 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and enable billing (the free monthly quota covers personal use).
 2. Enable **Map Tiles API**.
 3. Create an **API key** and restrict it to **HTTP referrers** (`http://localhost:3000/*` and your deployed domain) and to the Map Tiles API.
-4. Put it in `.env.local` as `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, then restart `npm run dev`.
-5. Click **Real 3D**.
+4. Put it in `.env.local` as `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, then restart `npm run dev` (`NEXT_PUBLIC_` variables are read at startup).
+5. Open the app at **http://localhost:3000** (the referrer must match the key restriction) and click **Real 3D**. Our own extrusions, labels and Three.js buses are hidden. Routes, stops, buses, facilities and lightning are re-drawn by deck.gl and draped onto Google's mesh. Switching off restores the normal view.
+
+> [!TIP]
+> When you create the key, Google's console accepts `localhost:3000/*` but may reject raw-IP referrers such as `127.0.0.1`. A brand-new key or restriction can return HTTP 403 for a few minutes until it propagates.
 
 ## Phase 5: Supercharge the UI with Skills & `/grill-me`
 
@@ -233,6 +238,7 @@ Add `LTA_ACCOUNT_KEY`, `LTA_DATAMALL_API` and, optionally, `DATA_GOV_API_KEY` an
 | Overpass `406 Not Acceptable` | Missing User-Agent / POST blocked | The script uses GET with a `User-Agent` header |
 | Air & Weather shows "stale" or "unavailable" | data.gov.sg 429 rate limit | Wait a minute, or set `DATA_GOV_API_KEY` |
 | A giant red polygon over campus | Running tracks are mapped as open lines in OSM | The script keeps only closed rings |
+| Real 3D on, but the HUD panels disappear | deck.gl's canvas lives inside MapLibre's control container (`z-index: 2`) | Give the HUD, haze overlay and Google attribution an explicit z-index (`z-10` / `z-[3]` / `z-[5]`) |
 | Blocked cross-origin `/_next/hmr` from 127.0.0.1 | Next.js 16 dev-origin protection | `allowedDevOrigins: ['127.0.0.1']` in `next.config.ts` |
 
 ## Credits & Disclaimer
