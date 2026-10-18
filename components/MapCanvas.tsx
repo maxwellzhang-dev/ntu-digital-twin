@@ -5,7 +5,8 @@ import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { NTU_CENTER, ThreeBusLayer } from '@/lib/threeBusLayer';
-import { buildPhotorealLayers, createPhotorealOverlay } from '@/lib/photorealistic';
+// deck.gl + loaders.gl are ~1 MB of JS only needed for Real 3D, so lib/photorealistic is loaded on demand.
+type PhotorealModule = typeof import('@/lib/photorealistic');
 import type { ActiveBus, EnvironmentState } from '@/lib/types';
 
 type FC = GeoJSON.FeatureCollection;
@@ -109,7 +110,10 @@ export default function MapCanvas(props: Props) {
   const mapRef = useRef<MapLibreMap | null>(null);
   const busLayerRef = useRef<ThreeBusLayer | null>(null);
   const readyRef = useRef(false);
-  const photorealRef = useRef<ReturnType<typeof createPhotorealOverlay> | null>(null);
+  const photorealModRef = useRef<PhotorealModule | null>(null);
+  const photorealLoadingRef = useRef(false);
+  const photorealRef = useRef<ReturnType<PhotorealModule['createPhotorealOverlay']> | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [credits, setCredits] = useState('');
   // Inputs last pushed to each source / layer; lets syncSources skip work when nothing changed.
   const appliedRef = useRef<Record<string, readonly unknown[]>>({});
@@ -122,7 +126,17 @@ export default function MapCanvas(props: Props) {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
     const p = propsRef.current;
-    const photoreal = p.layers.photoreal && PHOTOREAL_AVAILABLE;
+    const wantPhotoreal = p.layers.photoreal && PHOTOREAL_AVAILABLE;
+    if (wantPhotoreal && !photorealModRef.current && !photorealLoadingRef.current) {
+      photorealLoadingRef.current = true;
+      import('@/lib/photorealistic').then((mod) => {
+        photorealModRef.current = mod;
+        syncSources();
+      });
+    }
+    // Keep our own layers on screen until the deck.gl chunk has arrived.
+    const photoreal = wantPhotoreal && photorealModRef.current !== null;
+    const photorealMod = photorealModRef.current;
 
     // Run `apply` only when one of `deps` changed since the last time (by reference).
     const changed = (key: string, deps: readonly unknown[]) => {
@@ -146,13 +160,13 @@ export default function MapCanvas(props: Props) {
     if (changed('three-buses', [p.buses, p.layers.transit, photoreal])) busLayerRef.current?.setBuses(p.layers.transit && !photoreal ? p.buses : []);
 
     // Photoreal mode: Google 3D tiles + draped data on a deck.gl canvas above MapLibre.
-    if (photoreal) {
+    if (photoreal && photorealMod) {
       if (!photorealRef.current) {
-        photorealRef.current = createPhotorealOverlay();
+        photorealRef.current = photorealMod.createPhotorealOverlay();
         map.addControl(photorealRef.current);
       }
       if (changed('photoreal', [p.stopsAndRoutes, p.facilitiesGeoJson, p.environment, p.buses, p.layers.transit, p.layers.facilities])) photorealRef.current.setProps({
-        layers: buildPhotorealLayers(
+        layers: photorealMod.buildPhotorealLayers(
           GOOGLE_KEY,
           { stopsAndRoutes: p.stopsAndRoutes, facilitiesGeoJson: p.facilitiesGeoJson, environment: p.environment, buses: p.buses, showTransit: p.layers.transit, showFacilities: p.layers.facilities },
           setCredits,
@@ -407,9 +421,14 @@ export default function MapCanvas(props: Props) {
 
       readyRef.current = true;
       syncSources();
+      // Reveal the map once the first full frame (style, tiles, our layers) has rendered.
+      map.once('idle', () => setMapReady(true));
     });
+    // Never keep the splash up forever (e.g. a slow tile server).
+    const splashTimeout = setTimeout(() => setMapReady(true), 8000);
 
     return () => {
+      clearTimeout(splashTimeout);
       readyRef.current = false;
       appliedRef.current = {};
       map.remove();
@@ -451,6 +470,17 @@ export default function MapCanvas(props: Props) {
           mixBlendMode: 'screen',
         }}
       />
+      {/* Splash: hides MapLibre's start-up (WebGL init, shader compiles, first tiles) instead of showing a half-built, stuttering map. */}
+      <div
+        aria-hidden={mapReady}
+        className={`absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-[#0b1120] transition-opacity duration-700 ${mapReady ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      >
+        <div className="text-lg font-semibold tracking-tight text-slate-100">NTU 3D Digital Twin</div>
+        <div className="h-1 w-48 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full w-1/3 animate-[splash_1.2s_ease-in-out_infinite] rounded-full bg-sky-400" />
+        </div>
+        <div className="text-xs text-slate-400">Loading campus, live buses & air quality…</div>
+      </div>
     </div>
   );
 }
